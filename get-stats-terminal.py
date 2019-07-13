@@ -4,22 +4,35 @@ import os
 import sys
 import argparse
 import traceback
-
 from yaml import load
-
-from lxml import html
-import requests
-import json
-import re
-
+from pymongo import MongoClient
 from pprint import pprint
 
-api_host = 'https://site.web.api.espn.com'
-api_uri_fmt = """/apis/site/v2/sports/baseball/mlb/teams/{TEAM}/schedule?region=us&lang=en&seasontype={SEASON}"""
+from service.loader import Loader
+
+TEAMS = [
+    'ari',    'atl',    'bal',    'bos',
+    'chc',    'chw',    'cin',    'cle',
+    'col',    'det',    'hou',    'kc',
+    'laa',    'lad',    'mia',    'mil',
+    'min',    'nym',    'nyy',    'oak',
+    'phi',    'pit',    'sd',    'sea',
+    'sf',     'stl',    'tb',    'tex',
+    'tor',    'wsh'
+]
 
 opts = argparse.ArgumentParser(
     description=""
 )
+
+opts.add_argument( '-r','--reload',
+    action='store_true',
+    help='Update data from source for team.')
+
+opts.add_argument( '-l','--load_all',
+    action='store_true',
+    help='Update data from source for team.')
+
 opts.add_argument( '-t','--team',
     type=str, default='tex',
     #type=str, nargs='+', default='tex',
@@ -27,27 +40,15 @@ opts.add_argument( '-t','--team',
 
 arg = opts.parse_args()
 
-with requests.Session() as session:
+client = MongoClient('localhost', 27017)
+db = client['mlb_stats_dev']
+loader = Loader( db )
 
-    page = session.get( api_host +
-        api_uri_fmt.format_map({
-            'TEAM':   arg.team,
-            'SEASON': 2
-        }), allow_redirects=True )
-
-    data = json.loads( page.content )
-    #pprint( data );
-    print( "\nTop Level Keys:\n" );
-    for key in data.keys():
-        if isinstance(data[key], dict):
-            print( key )
-            for layer2 in data[key].keys():
-                print( "  " + layer2 )
-
-        if isinstance(data[key], list):
-            print( key + " is a list!")
-        else:
-            print( "{}: {}".format( key, data[key]  ) )
-
-    print( '\nURL: ' + page.url )
+if arg.reload:
+    loader.load( arg.team )
+elif arg.load_all:
+    for team in TEAMS:
+        loader.load( team )
+else:
+    loader.get( arg.team )
 

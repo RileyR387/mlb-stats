@@ -1,8 +1,8 @@
 
 .DEFAULT_GOAL := run
 
-MAIN=get-stats-terminal.py
-TERMINAL=$(MAIN)
+TERMINAL=get-stats-terminal.py
+MAIN=$(TERMINAL)
 
 SYS_PYTHON=$(shell which python3)
 VENV_PATH=./
