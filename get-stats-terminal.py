@@ -28,7 +28,11 @@ opts = argparse.ArgumentParser(
 
 opts.add_argument( '-r','--reload_all',
     action='store_true',
-    help='Force update mongo for all teams.')
+    help='Force mongo sync for ALL teams.')
+
+opts.add_argument( '-f','--fresh',
+    action='store_true',
+    help='Force fresh data for specified team.')
 
 opts.add_argument( '-t','--team',
     type=str, default='tex',
@@ -44,7 +48,9 @@ loader = Loader( db )
 if arg.reload_all:
     for team in TEAMS:
         loader.reload_schedule( team )
-        time.sleep(3)
+        time.sleep(5)
+elif arg.fresh:
+    loader.reload_schedule( arg.team )
 
 loader.get_schedule( arg.team )
 loader.dump()

@@ -34,10 +34,13 @@ class Loader:
         data[LOADER_TS_NAME]    = datetime.utcnow()
         data['stats_loader_sn'] = team_sn
 
-        load_id = team_schedule.insert_one( data ).inserted_id
-
-        print( load_id )
-        print( self.db.list_collection_names() )
+        if data['status'] == 'success':
+            del data['status']
+            load_id = team_schedule.insert_one( data ).inserted_id
+            print( load_id )
+            print( self.db.list_collection_names() )
+        else:
+            raise Exception("Data load failed!");
 
     def scheduleData(self):
         return self.schedule
