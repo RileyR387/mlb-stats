@@ -3,18 +3,24 @@ from lxml import html
 import requests
 import json
 import re
+import pytz
 from datetime import datetime, timedelta, timezone
 from pprint import pprint
+from tzlocal import get_localzone
+from bson.codec_options import CodecOptions
 
 API_HOST = 'https://site.web.api.espn.com'
 SCHED_URI_FMT = """/apis/site/v2/sports/baseball/mlb/teams/{TEAM}/schedule?region=us&lang=en&seasontype={SEASON}"""
+LOADER_TS_NAME = 'stats_loader_timestamp'
 
 class Loader:
     def __init__( self, mdbh ):
        self.session = requests.Session()
        self.db = mdbh
+       self.tz = get_localzone()
+       self.schedule = {}
 
-    def load(self, team_sn):
+    def reload_schedule(self, team_sn):
         page = self.session.get( API_HOST +
             SCHED_URI_FMT.format_map({
                 'TEAM':   team_sn,
@@ -23,57 +29,66 @@ class Loader:
 
         data = json.loads( page.content )
 
-        print( "\nTop Level Keys:\n" );
-        for key in data.keys():
-            if isinstance(data[key], dict):
-                print( key )
-                for layer2 in data[key].keys():
-                    print( "  " + layer2 )
+        team_schedule = self.db[team_sn]
 
-            if isinstance(data[key], list):
-                print( key + " is a list!")
-            else:
-                print( "{}: {}".format( key, data[key]  ) )
-
-        print( '\nURL: ' + page.url )
-
-        teamstats = self.db[team_sn]
-
-        data['stats_loader_timestamp'] = datetime.utcnow()
+        data[LOADER_TS_NAME]    = datetime.utcnow()
         data['stats_loader_sn'] = team_sn
 
-        load_id = teamstats.insert_one( data ).inserted_id
+        load_id = team_schedule.insert_one( data ).inserted_id
 
         print( load_id )
         print( self.db.list_collection_names() )
 
-    def get( self, team_sn ):
-        teamstats = self.db[team_sn]
-        ts_name = 'stats_loader_timestamp'
+    def scheduleData(self):
+        return self.schedule
 
-
-          #ts_name: {"$gt", (datetime.utcnow()-timedelta(days=1)) }
-        oldestData = datetime.today()-timedelta(days=1)
-        print( datetime.utcnow() )
-        print( oldestData )
-        stats = teamstats.find({
-            ts_name: {"$gt": oldestData }
-          }).sort(ts_name)[0]
-
-        if stats is None:
-            self.load(team_sn)
-            self.get(team_sn)
-            return
-
-        for key in stats.keys():
-            print( "# " + key );
+    def dump(self):
+        for key in self.schedule.keys():
+            print( "# " + key )
 
             if key == 'team':
-                pprint( stats[key] );
-
-            if isinstance( stats[key], dict):
-                for key in stats[key].keys():
+                pprint( self.schedule[key] )
+                next
+            elif key == LOADER_TS_NAME:
+                print( "Local: %s"%( str( self.schedule[key] ) ))
+                utc_time = self.schedule[key].astimezone(pytz.utc)
+                print( "UTC:   %s"%( str( utc_time   ) ))
+                next
+            elif key == 'events':
+                for event in self.schedule[key]:
+                    #pprint( event )
+                    print( '{} {}'.format( event['shortName'], event['date'] ) )
+                    for eventKey in event.keys():
+                        #if eventKey in  ['','date','shortName']:
+                        #    print( '{{{}: {}}}'.format( eventKey, event[eventKey]) )
+                        #else:
+                        #    print( eventKey )
+                        #    pass
+                        pass
+            elif isinstance( self.schedule[key], dict):
+                for key in self.schedule[key].keys():
                     print(" |- " + key )
 
+    def get_schedule( self, team_sn ):
+        team_schedule  = self.db[team_sn].with_options(
+            codec_options=CodecOptions(
+                tz_aware=True,
+                tzinfo=self.tz
+            )
+        )
+        oldestData = (datetime.today()-timedelta(hours=2)).astimezone()
 
+        self.schedule = team_schedule.find_one({
+                LOADER_TS_NAME: {"$gt": oldestData }
+            }, sort=[(LOADER_TS_NAME, -1)] )
+
+        if self.schedule is None:
+            print("Reloading schedule, nothing newer than: %s" % (str(oldestData)) )
+            self.reload_schedule(team_sn)
+            print( "***Data Refreshed***" )
+            self.get_schedule(team_sn)
+            return
+        else:
+            print("Data is new than: %s" % (str(oldestData)) )
+            pass
 

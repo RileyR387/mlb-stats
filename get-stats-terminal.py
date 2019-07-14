@@ -4,6 +4,7 @@ import os
 import sys
 import argparse
 import traceback
+import time
 from yaml import load
 from pymongo import MongoClient
 from pprint import pprint
@@ -25,18 +26,14 @@ opts = argparse.ArgumentParser(
     description=""
 )
 
-opts.add_argument( '-r','--reload',
+opts.add_argument( '-r','--reload_all',
     action='store_true',
-    help='Update data from source for team.')
-
-opts.add_argument( '-l','--load_all',
-    action='store_true',
-    help='Update data from source for team.')
+    help='Force update mongo for all teams.')
 
 opts.add_argument( '-t','--team',
     type=str, default='tex',
     #type=str, nargs='+', default='tex',
-    help='Team shortname')
+    help='Team shortname (lowercase)')
 
 arg = opts.parse_args()
 
@@ -44,11 +41,11 @@ client = MongoClient('localhost', 27017)
 db = client['mlb_stats_dev']
 loader = Loader( db )
 
-if arg.reload:
-    loader.load( arg.team )
-elif arg.load_all:
+if arg.reload_all:
     for team in TEAMS:
-        loader.load( team )
-else:
-    loader.get( arg.team )
+        loader.reload_schedule( team )
+        time.sleep(3)
+
+loader.get_schedule( arg.team )
+loader.dump()
 
