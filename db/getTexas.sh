@@ -4,7 +4,7 @@ mongoBin=$(which mongo);
 
 test -e "$mongoBin" || { echo "No \"mongo\" binary found"; exit 1; }
 
-mongo mlb_stats_dev <<<"
+mongo --quiet mlb_stats_dev <<<"
 db.tex.find({
 
 },{

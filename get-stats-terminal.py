@@ -5,11 +5,15 @@ import sys
 import argparse
 import traceback
 import time
-from yaml import load
+import yaml
 from pymongo import MongoClient
 from pprint import pprint
 
 from service.loader import Loader
+
+yourCwd = os.path.realpath('.')
+mySelf  = os.path.basename(__file__)
+myDir   = os.path.dirname( __file__)
 
 TEAMS = [
     'ari',    'atl',    'bal',    'bos',
@@ -34,15 +38,40 @@ opts.add_argument( '-f','--fresh',
     action='store_true',
     help='Force fresh data for specified team.')
 
+opts.add_argument( '-l','--list',
+    action='store_true',
+    help='List teams')
+
 opts.add_argument( '-t','--team',
-    type=str, default='tex',
+    type=str,
+    #type=str, default='tex',
     #type=str, nargs='+', default='tex',
     help='Team shortname (lowercase)')
 
 arg = opts.parse_args()
 
-client = MongoClient('localhost', 27017)
-db = client['mlb_stats_dev']
+if arg.list:
+    for team in TEAMS:
+        print(f"{team}")
+    sys.exit(0)
+
+if arg.team is None and not arg.reload_all:
+    opts.print_help()
+    sys.exit(1)
+
+conf = {}
+try:
+    with open( '{}/etc/{}.yaml'.format(myDir, mySelf),'r') as stream:
+        conf = yaml.load(stream, Loader=yaml.SafeLoader);
+except Exception as e:
+    print("I require a config file right now...\nFIXME: with reasonable defaults");
+    sys.exit(1)
+    #pass
+
+print("conf.mongo.host is: %s" % conf['mongo']['host'] );
+
+client = MongoClient(conf['mongo']['host'] or 'localhost', conf['mongo']['port'] or 27017)
+db = client[conf['mongo']['database'] or 'mlb_stats_dev']
 loader = Loader( db )
 
 if arg.reload_all:
@@ -55,3 +84,4 @@ elif arg.fresh:
 loader.get_schedule( arg.team )
 loader.dump()
 
+sys.exit(0)

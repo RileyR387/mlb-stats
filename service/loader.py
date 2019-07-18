@@ -1,5 +1,6 @@
 
-from lxml import html
+#from lxml import html
+
 import requests
 import json
 import re
@@ -60,7 +61,7 @@ class Loader:
             elif key == 'events':
                 for event in self.schedule[key]:
                     #pprint( event )
-                    print( '{} {}'.format( event['shortName'], event['date'] ) )
+                    #print( '{} {}'.format( event['shortName'], event['date'] ) )
                     for eventKey in event.keys():
                         #if eventKey in  ['','date','shortName']:
                         #    print( '{{{}: {}}}'.format( eventKey, event[eventKey]) )

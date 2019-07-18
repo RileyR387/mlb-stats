@@ -1,0 +1,6 @@
+---
+mongo:
+  host: 'localhost'
+  database: 'mlb_stats_dev'
+  port: 27017
+

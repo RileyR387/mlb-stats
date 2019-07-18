@@ -1,5 +1,5 @@
 
-.DEFAULT_GOAL := run
+.DEFAULT_GOAL := init
 
 TERMINAL=get-stats-terminal.py
 MAIN=$(TERMINAL)
@@ -32,14 +32,17 @@ run: init main
 main:
 	$(PYTHON) $(MAIN)
 
-init-dev:
+init_dev:
 	test -e $(PYTHON) || \
 		{ echo "Creating virtual env: $(VENV)"; $(SYS_PYTHON) -m venv $(VENV_NAME) ; } && \
 		$(PIP) install --upgrade pip setuptools pipreqs && \
 		$(PIP) install "pyramid==1.10.4" waitress
 
-install-dev:
-	$(PIP) install -e ".[dev]"
+##
+# Is this from django??
+###
+#install-dev:
+#	$(PIP) install -e ".[dev]"
 
 update_deps:
 	$(VENV)/bin/pipreqs --force ./ 
