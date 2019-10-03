@@ -1,53 +1,49 @@
 
 .DEFAULT_GOAL := init
 
-TERMINAL=get-stats-terminal.py
-MAIN=$(TERMINAL)
+MAIN=get-stats-terminal.py
 
 SYS_PYTHON=$(shell which python3)
 VENV_PATH=./
 VENV_NAME=venv
 VENV=$(VENV_PATH)$(VENV_NAME)
 PIP=$(VENV)/bin/pip
-PSERVE=$(VENV)/bin/pserve
 PYTHON=$(VENV)/bin/python
 
 init:
-	test -e $(PYTHON) || \
-		{ echo "Creating virtual env: $(VENV)"; $(SYS_PYTHON) -m venv $(VENV_NAME) ; } && \
-	  { test -r requirements.txt && $(PIP) install -r requirements.txt ; } || \
-		{ echo "No requirements.txt to install"; exit 0 ; }
+	test -e $(PYTHON) || { $(SYS_PYTHON) -m venv $(VENV_NAME) && $(PIP) install --upgrade pip setuptools wheel ; }
 
-test:
+test: init
 	$(PYTHON) -m unittest
 
-serve: server
-server:
-	$(PYTHON) $(MAIN)
+install:
+	$(PIP) install .
 
-dev:
-	$(PSERVE) development.ini --reload
-
-run: init main
-main:
-	$(PYTHON) $(MAIN)
-
-init_dev:
+install-dev: init
 	test -e $(PYTHON) || \
-		{ echo "Creating virtual env: $(VENV)"; $(SYS_PYTHON) -m venv $(VENV_NAME) ; } && \
-		$(PIP) install --upgrade pip setuptools pipreqs && \
-		$(PIP) install "pyramid==1.10.4" waitress
+    $(PIP) install -e ".[dev]"
 
-##
-# Is this from django??
-###
-#install-dev:
-#	$(PIP) install -e ".[dev]"
+install-user: test
+	$(PIP) install --user .
 
-update_deps:
-	$(VENV)/bin/pipreqs --force ./ 
+install-site:
+	$(SYS_PYTHON) -m pip install .
+
+run: init
+	$(PYTHON) $(MAIN)
+
+pin-dependencies:
+	$(PIP) install --upgrade pipreqs && \
+  $(VENV)/bin/pipreqs --force ./
 
 clean:
-	rm -r $(VENV) && \
-	  find . -type d -name __pycache__ -exec rm -r {} \;
+	find . -type d -name "*egg-info" -exec rm -r {} \; 2>/dev/null ; \
+  find . -type d -name __pycache__ -not -path $(VENV) -exec rm -r {} \; 2>/dev/null && \
+    echo "So fresh so clean..."
+
+clean-venv:
+	test -d ./venv &&  \
+    rm -r ./venv || echo "./venv already clean!"
+
+clean-all: clean clean-venv
 
